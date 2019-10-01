@@ -23,15 +23,20 @@ If you see this number to be the same as your server's page_size limit (default 
 it is likely that you are missing some results. In this case, change your server config. You
 should make all 3 configs listed below to be substantially bigger:
 
-`MAX_CONTENT_LENGTH = 20 * 1024 * 1024
- MAX_RESPONSE_LENGTH = 20 * 1024 * 1024
- DEFAULT_PAGE_SIZE = 10000`
+`MAX_CONTENT_LENGTH = 20 * 1024 * 1024`
+`MAX_RESPONSE_LENGTH = 20 * 1024 * 1024`
+`DEFAULT_PAGE_SIZE = 10000`
 
 Since the size of data depends on how many variantsets you are querying at a time, and the 
 density of variants, it is impossible to give a general advice on how small or big these numbers should be. 
 If you are unsure, set the config mentioned above to something really really big, 
 e.g., `DEFAULT_PAGE_SIZE` to be 100000, and both `MAX_CONTENT_LENGTH` and ` MAX_RESPONSE_LENGTH` to be `50 * 1024 * 1024`.
 
-Alternatively, you should reduce the increment value. As a general rule of thumb, the `increment` should 
+Additionally, you should consider reducing the increment value. As a general rule of thumb, the `increment` should 
 not be bigger than `2000000`. If your dataset contains hundreds of variant sets, it would be a good idea 
 to reduce it to something smaller. Depending on the range you query, it should not be too small either. Preferably bigger than `100000`.
+
+# Output
+
+The script will output 1 json file per ethnicity that you search for, and 1 json file that gives an overview of your search. It will be printed
+to a child directory, formatted as `output` with the current timestamp, e.g. `output_20191001_192232`.
