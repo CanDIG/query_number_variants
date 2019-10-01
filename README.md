@@ -24,7 +24,9 @@ it is likely that you are missing some results. In this case, change your server
 should make all 3 configs listed below to be substantially bigger:
 
 `MAX_CONTENT_LENGTH = 20 * 1024 * 1024`
+
 `MAX_RESPONSE_LENGTH = 20 * 1024 * 1024`
+
 `DEFAULT_PAGE_SIZE = 10000`
 
 Since the size of data depends on how many variantsets you are querying at a time, and the 
@@ -40,3 +42,7 @@ to reduce it to something smaller. Depending on the range you query, it should n
 
 The script will output 1 json file per ethnicity that you search for, and 1 json file that gives an overview of your search. It will be printed
 to a child directory, formatted as `output` with the current timestamp, e.g. `output_20191001_192232`.
+
+# Known issue
+
+- If the ethnicity you search for contains `/`, it is not properly escaped as of yet. Please do not search for these.
