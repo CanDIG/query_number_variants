@@ -97,6 +97,7 @@ def construct_async_request_queues(ethnicity, curr_start, curr_end):
 
 
 def output_stats_for_current_ethnicity(temp_result_list, ethnicity, total):
+
 	output_dict = {}
 	output_dict["ethnicity"] = ethnicity
 	output_dict["start"] = start
@@ -142,7 +143,7 @@ def main():
 
 		temp_result_list = []
 
-		for future_response in responses:
+		for idx, future_response in enumerate(responses):
 			try:
 				response = future_response.result()
 
@@ -150,7 +151,7 @@ def main():
 				temp_result_list = temp_result_list + res['results']['variants']
 				total = total + res['results']['total']
 
-				print("Current response contains", res['results']['total'], "variants")
+				print(ethnicity, 'contains', res['results']['total'], 'variants','from range', requests_queue[idx]['results'][0]['start'], requests_queue[idx]['results'][0]['end'])
 			except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
 				print("some sort of connection error")
 
