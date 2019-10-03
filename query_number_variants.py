@@ -4,6 +4,7 @@ import requests
 import json
 import datetime
 import os
+from requests_futures.sessions import FuturesSession
 
 ##################### load configs ########################
 ###########################################################
@@ -71,63 +72,91 @@ def generate_model_request(ethnicity, curr_start, curr_end):
 			]
 	}
 
+def construct_async_request_queues(ethnicity, curr_start, curr_end):
+
+	requests_queue = []
+
+	# The following while loop constructs a complete request queue
+	while curr_end <= end:
+		model_request = generate_model_request(ethnicity, curr_start, curr_end)
+
+		requests_queue.append(model_request)
+
+		curr_start = curr_end + 1
+
+		# When the curr_end is the same as end, break out of the while loop
+		if curr_end == end:
+			break
+
+		if curr_end + increment > end:
+			curr_end = end
+		else:
+			curr_end = curr_end + increment
+
+	return requests_queue
+
+
+def output_stats_for_current_ethnicity(temp_result_list, ethnicity, total):
+	output_dict = {}
+	output_dict["ethnicity"] = ethnicity
+	output_dict["start"] = start
+	output_dict["end"] = end
+
+	deduplicated_list = [dict(t) for t in {tuple(d.items()) for d in temp_result_list}]
+
+	output_file_name = ethnicity + '_chr' + reference_name + '_' + str(start) + '_' + str(end) + '.json'
+
+	total_result[ethnicity] = len(deduplicated_list)
+	
+	with open(timestamp_path + '/' + output_file_name, 'w') as f:
+		output_dict['preliminary_total'] = total
+		output_dict['total'] = len(deduplicated_list)
+		output_dict['results'] = deduplicated_list
+
+		json.dump(output_dict, f, indent=4)
+
+
 def main():
 	for ethnicity in ethnicities:
 		print("Following logs are for", ethnicity)
 
+		# initialize
 		total = 0
 		curr_start = start
 		curr_end = curr_start + increment
+		header = {'Content-Type': 'Application/json'}
 
 		# If after the increment, the curr_end is bigger than the end, overwrite it to end
 		if curr_end > end:
 			curr_end = end
 
-		output_dict = {}
+		# Construct request queues
+
+		requests_queue = construct_async_request_queues(ethnicity, curr_start, curr_end)
+
+		print("Async requests queue for", ethnicity, "contains", len(requests_queue), "requests")
+
+		async_session = FuturesSession(max_workers=5)
+
+		responses = [async_session.post(server_address, json=request, headers=header) for request in requests_queue]
+
 		temp_result_list = []
-		output_dict["ethnicity"] = ethnicity
-		output_dict["start"] = start
-		output_dict["end"] = end
 
-		while curr_end <= end:
+		for future_response in responses:
+			try:
+				response = future_response.result()
 
-			model_request = generate_model_request(ethnicity, curr_start, curr_end)
+				res = response.json()
+				temp_result_list = temp_result_list + res['results']['variants']
+				total = total + res['results']['total']
 
-			r = requests.post(server_address, data=json.dumps(model_request), headers={'content-type':'application/json'})
-
-			res = r.json()
-
-			temp_result_list = temp_result_list + res['results']['variants']
-
-			total = total + res['results']['total']
-
-			print(ethnicity, 'contains', res['results']['total'], 'variants','from range', curr_start, curr_end)
-
-			curr_start = curr_end + 1
-
-			# When the curr_end is the same as end, break out of the while loop
-			if curr_end == end:
-				break
-
-			if curr_end + increment > end:
-				curr_end = end
-			else:
-				curr_end = curr_end + increment
-
-		deduplicated_list = [dict(t) for t in {tuple(d.items()) for d in temp_result_list}]
+				print("Current response contains", res['results']['total'], "variants")
+			except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+				print("some sort of connection error")
 
 		print('In total,', ethnicity, 'contains', total, 'variants', 'from range', start, end, 'in chr', reference_name)
 
-		output_file_name = ethnicity + '_chr' + reference_name + '_' + str(start) + '_' + str(end) + '.json'
-
-		total_result[ethnicity] = len(deduplicated_list)
-		
-		with open(timestamp_path + '/' + output_file_name, 'w') as f:
-			output_dict['preliminary_total'] = total
-			output_dict['total'] = len(deduplicated_list)
-			output_dict['results'] = deduplicated_list
-
-			json.dump(output_dict, f, indent=4)
+		output_stats_for_current_ethnicity(temp_result_list, ethnicity, total)
 
 	with open(timestamp_path + '/overview.json', 'w') as f:
 		json.dump(total_result, f, indent=4)
