@@ -19,8 +19,10 @@ try:
 		server_address = config["server_address"]
 		ethnicities = config["ethnicities"]
 		dataset_id = config["dataset_id"]
+		async_worker = config["async_workers"]
+
 except Exception:
-	print("Something is wrong with your config file, make sure it contains \
+	print("Something is wrong with your config file, make sure it contains async_worker, \
 		start, end, referenceName, increment, server_address, ethnicities and dataset_id")
 
 ##################initialize output dir#####################
@@ -151,7 +153,7 @@ def main():
 
 		print("Async requests queue for", ethnicity, "contains", len(requests_queue), "requests")
 
-		async_session = FuturesSession(max_workers=5)
+		async_session = FuturesSession(max_workers=async_worker)
 
 		responses = [async_session.post(server_address, json=request, headers=header) for request in requests_queue]
 
