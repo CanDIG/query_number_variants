@@ -29,6 +29,13 @@ timestamp_path = 'output_' + datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 
 try:
 	os.mkdir(timestamp_path)
+
+	# init log file
+	# open(timestamp_path + '/log.txt', 'a').close()
+	with open(timestamp_path + '/log.txt', 'a', encoding='utf-8') as file:
+		file.write('population,start,end,count\n')
+
+
 except OSError:
 	print("path creation failed")
 
@@ -96,25 +103,31 @@ def construct_async_request_queues(ethnicity, curr_start, curr_end):
 	return requests_queue
 
 
-def output_stats_for_current_ethnicity(temp_result_list, ethnicity, total):
+def output_stats_for_current_ethnicity(ethnicity, total):
 
 	output_dict = {}
 	output_dict["ethnicity"] = ethnicity
 	output_dict["start"] = start
 	output_dict["end"] = end
 
-	deduplicated_list = [dict(t) for t in {tuple(d.items()) for d in temp_result_list}]
-
 	output_file_name = ethnicity + '_chr' + reference_name + '_' + str(start) + '_' + str(end) + '.json'
-
-	total_result[ethnicity] = len(deduplicated_list)
 	
 	with open(timestamp_path + '/' + output_file_name, 'w') as f:
-		output_dict['preliminary_total'] = total
-		output_dict['total'] = len(deduplicated_list)
-		output_dict['results'] = deduplicated_list
+		output_dict['total'] = total
 
 		json.dump(output_dict, f, indent=4)
+
+
+def write_to_log(content):
+
+	with open(timestamp_path + '/log.txt', 'a', encoding='utf-8') as file:
+		file.write(content)
+
+def deduplicate_count(prev_curr_res):
+	temp_merge = prev_curr_res['prev'] + prev_curr_res['curr']
+	deduplicate_temp_merge = [dict(t) for t in {tuple(d.items()) for d in temp_merge}]
+	
+	return len(prev_curr_res['curr']) - len(temp_merge) + len(deduplicate_temp_merge)
 
 
 def main():
@@ -143,21 +156,43 @@ def main():
 
 		temp_result_list = []
 
+		prev_curr_res = {}
+
 		for idx, future_response in enumerate(responses):
+			curr_req = requests_queue[idx]['results'][0]
+
 			try:
 				response = future_response.result()
-
 				res = response.json()
-				temp_result_list = temp_result_list + res['results']['variants']
-				total = total + res['results']['total']
 
-				print(ethnicity, 'contains', res['results']['total'], 'variants','from range', requests_queue[idx]['results'][0]['start'], requests_queue[idx]['results'][0]['end'])
+				# The first iteration, use the count as it is; and store the result as prev
+				if prev_curr_res.get('prev') is None:
+					prev_curr_res['prev'] = res['results']['variants']
+					dedup_count = res['results']['total']
+				else:
+					prev_curr_res['curr'] = res['results']['variants']
+					dedup_count = deduplicate_count(prev_curr_res)
+
+					# Rewrite response of current iteration to prev
+					prev_curr_res['prev'] = res['results']['variants']
+
+				total = total + dedup_count
+
+				print(ethnicity, 'contains', dedup_count, 'variants from range', curr_req['start'], curr_req['end'])
+				write_to_log(ethnicity + "," + str(curr_req['start']) + ',' + str(curr_req['end'] + ',' + str(dedup_count) + '\n'))
+
 			except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-				print("some sort of connection error")
+				print(ethnicity, 'ConnectionError occurs at', curr_req['start'], curr_req['end'])
+				write_to_log(ethnicity + "," + str(curr_req['start']) + ',' + str(curr_req['end'] + ',conn_error\n'))
+
+			except KeyError as e:
+				print(ethnicity, 'KeyError occurs at', curr_req['start'], curr_req['end'])
+				write_to_log(ethnicity + "," + str(curr_req['start']) + ',' + str(curr_req['end'] + ',key_error\n'))
+
 
 		print('In total,', ethnicity, 'contains', total, 'variants', 'from range', start, end, 'in chr', reference_name)
 
-		output_stats_for_current_ethnicity(temp_result_list, ethnicity, total)
+		output_stats_for_current_ethnicity(ethnicity, total)
 
 	with open(timestamp_path + '/overview.json', 'w') as f:
 		json.dump(total_result, f, indent=4)
