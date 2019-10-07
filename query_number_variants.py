@@ -31,8 +31,7 @@ try:
 	os.mkdir(timestamp_path)
 
 	# init log file
-	# open(timestamp_path + '/log.txt', 'a').close()
-	with open(timestamp_path + '/log.txt', 'a', encoding='utf-8') as file:
+	with open(timestamp_path + '/log.csv', 'a', encoding='utf-8') as file:
 		file.write('population,start,end,count\n')
 
 
@@ -41,11 +40,13 @@ except OSError:
 
 ###########################################################
 total_result = {}
-total_result["reference_name"] = reference_name
-total_result["start"] = start
-total_result["end"] = end
-total_result["dataset_id"] = dataset_id
-total_result["increment"] = increment
+total_result["config"] = {}
+total_result["results"] = {}
+total_result["config"]["reference_name"] = reference_name
+total_result["config"]["start"] = start
+total_result["config"]["end"] = end
+total_result["config"]["dataset_id"] = dataset_id
+total_result["config"]["increment"] = increment
 
 
 def generate_model_request(ethnicity, curr_start, curr_end):
@@ -120,7 +121,7 @@ def output_stats_for_current_ethnicity(ethnicity, total):
 
 def write_to_log(content):
 
-	with open(timestamp_path + '/log.txt', 'a', encoding='utf-8') as file:
+	with open(timestamp_path + '/log.csv', 'a', encoding='utf-8') as file:
 		file.write(content)
 
 def deduplicate_count(prev_curr_res):
@@ -153,8 +154,6 @@ def main():
 		async_session = FuturesSession(max_workers=5)
 
 		responses = [async_session.post(server_address, json=request, headers=header) for request in requests_queue]
-
-		temp_result_list = []
 
 		prev_curr_res = {}
 
@@ -193,6 +192,7 @@ def main():
 		print('In total,', ethnicity, 'contains', total, 'variants', 'from range', start, end, 'in chr', reference_name)
 
 		output_stats_for_current_ethnicity(ethnicity, total)
+		total_result["results"][ethnicity] = total
 
 	with open(timestamp_path + '/overview.json', 'w') as f:
 		json.dump(total_result, f, indent=4)
