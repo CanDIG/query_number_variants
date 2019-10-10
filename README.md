@@ -34,8 +34,24 @@ Another good reference is each request (represented by one line of log that prin
 
 # Output
 
-The script will output 1 json file per ethnicity that you search for, and 1 json file that gives an overview of your search. It will be printed to a child directory, formatted as `output` with the current timestamp, e.g. `output_20191001_192232`.
+- A file named `overview.json` that contains the config for your search, as well as the overall counts data.
+- A file for every ethnicity you search for, that contains the stats of the current ethnicity.
+- A file named `log.csv` that logs the counts for all intervals for all ethnicities, if some sort of exception occurs at certain interval, it will log that too.
+
+All of the files will be printed to a child directory, formatted as `output` with the current timestamp, e.g. `output_20191001_192232`.
 
 # Known issues
 
 - If the ethnicity you search for contains `/`, it is not properly escaped as of yet. Please do not search for these.
+
+# Recommended Configuration
+
+When you are using the candig-server to scan through a large number of files, this script could facilitate the process. For the script to be fully utilized, we recommend the following configs:
+
+- The machine would ideally have at least 4 cores, and 8GB of RAM.
+- If you were to run the server in standalone mode, it is recommended to start the server with multiple workers. As an example, if you were to use `gunicorn` to run the `candig-server`, I recommend running `pip install gunicorn[gthread]` in your `candig-server` environment (not here) and starting the `candig-server` using `gunicorn`, with command like this: `candig_server --host 0.0.0.0 --port 3000 --gunicorn --workers 4 --worker_class gthread`
+- Number of gunicorn workers depends on how many cores your cpu has. Generally speaking, it should not exceed `2n + 1` (n being the # of cores), but for this particular use case, it should not be bigger than n.
+- In the config, you have the option to set the number of async workers. This number should not be bigger than that of gunicorn workers.
+- Performance gain after 6+ gunicorn workers/async workers is insignificant, therefore, even if your cpu has 32 cores or more, running the candig-server with 6 gunicorn workers, and 6 async workers should achieve good results. If your cpu has 32 cores, and your disk drive is blazing fast, then it doesn't hurt to spawn 10 workers (gunicorn/async)
+- It is recommended to have at least 3 gunicorn workers/async workers for the script.
+- This script is CPU and I/O intensive. If your standalone application is also used by others, then you should consider leaving some processing power to your peers. For example, if you were to run the `candig-server` with 6 cores, you can probably leave 2 cores for the use of others.
