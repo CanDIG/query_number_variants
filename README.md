@@ -34,7 +34,11 @@ Another good reference is each request (represented by one line of log that prin
 
 # Output
 
-The script will output 1 json file per ethnicity that you search for, and 1 json file that gives an overview of your search. It will be printed to a child directory, formatted as `output` with the current timestamp, e.g. `output_20191001_192232`.
+- A file named `overview.json` that contains the config for your search, as well as the overall counts data.
+- A file for every ethnicity you search for, that contains the stats of the current ethnicity.
+- A file named `log.csv` that logs the counts for all intervals for all ethnicities, if some sort of exception occurs at certain interval, it will log that too.
+
+All of the files will be printed to a child directory, formatted as `output` with the current timestamp, e.g. `output_20191001_192232`.
 
 # Known issues
 
